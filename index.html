@@ -1,0 +1,354 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Cards Display Board</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Display board for trading cards." />
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --panel: #121212;         /* Dark app chrome */
+            --text: #e6edf3;
+            --muted: #9aa4b2;
+            --accent: #5ab4ff;
+
+            /* Board + slot colors per requirements */
+            --board-bg: #1a1a1a;      /* Dark grey display board */
+            --slot-empty: #000000;    /* Solid black, darker than board */
+            --card-bg: #151515;       /* Base for non-empty slots while loading */
+
+            --shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.02);
+            --radius: 14px; --gap: 14px; --slot-radius: 12px;
+            --slot-aspect-w: 63; --slot-aspect-h: 88;
+        }
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #f6f7fb;
+                --panel: #ffffff;
+                --text: #0b1220;
+                --muted: #475569;
+                --accent: #0b82ff;
+                --board-bg: #1f2937;    /* Keep dark board even in light mode */
+                --slot-empty: #000000;
+                --card-bg: #111827;
+                --shadow: 0 2px 16px rgba(0,0,0,.14), inset 0 0 0 1px rgba(0,0,0,.04);
+            }
+        }
+
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0;
+            background: radial-gradient(1200px 800px at 70% -20%, rgba(90,180,255,.12), transparent 60%),
+            radial-gradient(900px 900px at 0% 0%, rgba(101,88,245,.10), transparent 50%),
+            var(--bg);
+            color: var(--text);
+            font: 16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji","Segoe UI Emoji";
+            min-height: 100vh;
+        }
+
+        header {
+            position: sticky; top: 0; z-index: 5;
+            background: color-mix(in oklab, var(--panel) 92%, transparent);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border-bottom: 1px solid color-mix(in oklab, var(--panel) 80%, var(--text) 10%);
+        }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+        .topbar {
+            display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+        }
+        .title { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .2px; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .tab {
+            background: var(--panel); color: var(--text);
+            border: 1px solid color-mix(in oklab, var(--panel) 70%, var(--text) 25%);
+            padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #5ab4ff, #6588ff); color: white; border: 0; box-shadow: var(--shadow);
+        }
+
+        main { padding: 10px 0 36px; }
+        .album { display: grid; gap: 22px; }
+
+        .board {
+            background: var(--board-bg);
+            border-radius: var(--radius);
+            padding: 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+
+        .slot {
+            position: relative; width: 100%;
+            aspect-ratio: var(--slot-aspect-w) / var(--slot-aspect-h);
+            border-radius: var(--slot-radius);
+            overflow: hidden;
+            background: var(--card-bg);
+            box-shadow: var(--shadow);
+            isolation: isolate;
+        }
+        .slot img {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; display: block; user-select: none; -webkit-user-drag: none;
+        }
+        /* Empty slots: solid black, no text */
+        .slot.empty { background: var(--slot-empty); border: none; }
+
+        .status, .error {
+            background: color-mix(in oklab, var(--panel) 96%, transparent);
+            border: 1px solid color-mix(in oklab, var(--panel) 80%, var(--text) 10%);
+            padding: 14px 16px; border-radius: 12px; box-shadow: var(--shadow);
+            color: var(--muted); white-space: pre-wrap;
+        }
+        .error { color: #ef4444; }
+
+        /* Editor */
+        .editor-wrap { display: grid; gap: 12px; }
+        textarea#jsonEditor {
+            width: 100%; min-height: 320px; resize: vertical; border-radius: 12px; padding: 12px 14px;
+            border: 1px solid color-mix(in oklab, var(--panel) 70%, var(--text) 25%);
+            background: var(--panel); color: var(--text);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 14px; line-height: 1.5;
+        }
+        .editor-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            background: linear-gradient(135deg, #5ab4ff, #6588ff); color: white; border: 0;
+            padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; box-shadow: var(--shadow);
+        }
+        button.secondary {
+            background: var(--panel); color: var(--text);
+            border: 1px solid color-mix(in oklab, var(--panel) 70%, var(--text) 25%); box-shadow: none;
+        }
+
+        @media (max-width: 560px) {
+            .grid { gap: 10px; }
+            .board { padding: 14px; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="wrap topbar">
+        <div class="title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7.5c0-.83.67-1.5 1.5-1.5h6c.83 0 1.5.67 1.5 1.5V18c0 .83-.67 1.5-1.5 1.5h-6A1.5 1.5 0 0 1 4 18V7.5Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M11 6h7.5C19.33 6 20 6.67 20 7.5V16" stroke="currentColor" stroke-width="1.5" opacity=".55"/>
+                <path d="M8 9.5h3M8 13h3" stroke="currentColor" stroke-width="1.5" opacity=".75"/>
+            </svg>
+            <span>Cards</span>
+        </div>
+        <nav class="tabs" aria-label="Views">
+            <button class="tab active" data-tab="album">Board</button>
+            <button class="tab" data-tab="editor">Editor</button>
+        </nav>
+    </div>
+</header>
+
+<main class="wrap">
+    <!-- Album View -->
+    <section id="view-album">
+        <section id="album" class="album" aria-live="polite"></section>
+    </section>
+
+    <!-- Editor View -->
+    <section id="view-editor" hidden>
+        <div class="editor-wrap">
+            <textarea id="jsonEditor" spellcheck="false" aria-label="JSON editor"></textarea>
+            <div class="editor-actions">
+                <button id="applyBtn" title="Validate and apply changes to album">Apply</button>
+                <button id="formatBtn" class="secondary" title="Format JSON">Format</button>
+                <button id="resetBtn" class="secondary" title="Reset to embedded sample">Reset to Sample</button>
+            </div>
+            <div id="editorStatus" class="status" hidden></div>
+            <div id="editorError" class="error" hidden></div>
+        </div>
+    </section>
+</main>
+
+<script>
+    // ===========================
+    // Embedded sample JSON (editable via the Editor tab)
+    // ===========================
+    const DEFAULT_DATA = {
+        "pages": [
+            [
+                null,"https://www.pokemon-card.com/assets/images/card_images/large/SM11a/037054_T_OKIDOHAKASENOSETTEINGU.jpg",null,
+                "https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037464_T_BURUNOTANSAKU.jpg","https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037469_T_REDDONOCHOUSEN.jpg","https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037461_T_GURINNOSENRYAKU.jpg",
+                null,"https://www.pokemon-card.com/assets/images/card_images/large/SM11b/037164_P_PIKACHUU.jpg",null
+            ],
+            [
+                null,null,null,
+                null,"https://www.pokemon-card.com/assets/images/card_images/large//036903_P_MYUU.jpg",null,
+                null,null,null
+            ]
+        ]
+    };
+
+    // Working copy
+    let currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+    // ====== DOM refs ======
+    const albumEl = document.getElementById('album');
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+    const viewAlbum = document.getElementById('view-album');
+    const viewEditor = document.getElementById('view-editor');
+    const jsonEditor = document.getElementById('jsonEditor');
+    const applyBtn = document.getElementById('applyBtn');
+    const formatBtn = document.getElementById('formatBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const editorStatus = document.getElementById('editorStatus');
+    const editorError = document.getElementById('editorError');
+
+    // ====== UI Helpers ======
+    function showEditorStatus(msg) {
+        if (!msg) { editorStatus.hidden = true; editorStatus.textContent = ''; return; }
+        editorStatus.hidden = false; editorStatus.textContent = msg;
+    }
+    function showEditorError(msg) {
+        if (!msg) { editorError.hidden = true; editorError.textContent = ''; return; }
+        editorError.hidden = false; editorError.textContent = msg;
+    }
+    function switchTab(to) {
+        tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === to));
+        viewAlbum.hidden = to !== 'album';
+        viewEditor.hidden = to !== 'editor';
+    }
+
+    function normalize9(arr) {
+        const nine = Array(9).fill(null);
+        for (let i = 0; i < Math.min(9, (arr || []).length); i++) {
+            nine[i] = arr[i] ?? null;
+        }
+        return nine;
+    }
+
+    function createSlot(url /*, pageIndex, slotIndex */) {
+        const slot = document.createElement('div');
+        slot.className = 'slot' + (url ? '' : ' empty');
+        if (!url) return slot;
+
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.alt = 'Card';
+        img.src = url;
+        img.addEventListener('error', () => {
+            slot.classList.add('empty');
+            if (img.parentNode) img.parentNode.removeChild(img);
+        });
+        slot.appendChild(img);
+        return slot;
+    }
+
+    function renderAlbum(pages) {
+        albumEl.innerHTML = '';
+        if (!Array.isArray(pages) || pages.length === 0) {
+            const div = document.createElement('div');
+            div.className = 'status';
+            div.textContent = 'No pages to display.';
+            albumEl.appendChild(div);
+            return;
+        }
+        pages.forEach((page) => {
+            const board = document.createElement('article');
+            board.className = 'board';
+
+            const grid = document.createElement('div');
+            grid.className = 'grid';
+            const nine = normalize9(page);
+            nine.forEach((url) => grid.appendChild(createSlot(url)));
+
+            board.appendChild(grid);
+            albumEl.appendChild(board);
+        });
+    }
+
+    function validateData(obj) {
+        if (typeof obj !== 'object' || obj === null) throw new Error('Root must be an object.');
+        if (!Array.isArray(obj.pages)) throw new Error('Missing "pages" array.');
+        obj.pages.forEach((page, i) => {
+            if (!Array.isArray(page)) throw new Error(`pages[${i}] must be an array.`);
+            page.forEach((cell, j) => {
+                if (!(cell === null || typeof cell === 'string')) {
+                    throw new Error(`pages[${i}][${j}] must be a string URL or null.`);
+                }
+            });
+        });
+        return true;
+    }
+
+    // ====== Event wiring ======
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            switchTab(tab.dataset.tab);
+            if (tab.dataset.tab === 'editor') {
+                jsonEditor.value = JSON.stringify(currentData, null, 2);
+                showEditorStatus('');
+                showEditorError('');
+            }
+        });
+    });
+
+    applyBtn.addEventListener('click', () => {
+        showEditorStatus('Validating…');
+        showEditorError('');
+
+        let parsed;
+        try {
+            parsed = JSON.parse(jsonEditor.value);
+        } catch (e) {
+            showEditorStatus('');
+            showEditorError('JSON parse error: ' + e.message);
+            return;
+        }
+
+        try {
+            validateData(parsed);
+        } catch (e) {
+            showEditorStatus('');
+            showEditorError(e.message);
+            return;
+        }
+
+        currentData = parsed;
+        renderAlbum(currentData.pages);
+        showEditorStatus('Applied ✓ — Album refreshed.');
+        switchTab('album');
+    });
+
+    formatBtn.addEventListener('click', () => {
+        try {
+            const obj = JSON.parse(jsonEditor.value);
+            jsonEditor.value = JSON.stringify(obj, null, 2);
+            showEditorStatus('Formatted ✓');
+            showEditorError('');
+        } catch (e) {
+            showEditorStatus('');
+            showEditorError('Cannot format: ' + e.message);
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        jsonEditor.value = JSON.stringify(DEFAULT_DATA, null, 2);
+        showEditorStatus('Reset to sample. Click Apply to reflect changes.');
+        showEditorError('');
+    });
+
+    // ====== Init ======
+    (function init() {
+        renderAlbum(currentData.pages);
+        jsonEditor.value = JSON.stringify(currentData, null, 2);
+        switchTab('album');
+    })();
+</script>
+</body>
+</html>
