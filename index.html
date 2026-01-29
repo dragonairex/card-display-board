@@ -49,7 +49,7 @@
         }
 
         header {
-            position: sticky; top: 0; z-index: 5;
+            /*position: sticky; top: 0; z-index: 5;*/
             background: color-mix(in oklab, var(--panel) 92%, transparent);
             backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
             border-bottom: 1px solid color-mix(in oklab, var(--panel) 80%, var(--text) 10%);
@@ -97,13 +97,19 @@
             box-shadow: var(--shadow);
             isolation: isolate;
         }
+        @keyframes fadeIn {
+            from { opacity: 0;}
+            to { opacity: 1;}
+        }
         .slot img {
             position: absolute; inset: 0;
             width: 100%; height: 100%;
             object-fit: cover; display: block; user-select: none; -webkit-user-drag: none;
+            animation: fadeIn 0.4s ease-out forwards;
         }
         /* Empty slots: solid black, no text */
         .slot.empty { background: var(--slot-empty); border: none; }
+
 
         .status, .error {
             background: color-mix(in oklab, var(--panel) 96%, transparent);
@@ -130,6 +136,10 @@
         button.secondary {
             background: var(--panel); color: var(--text);
             border: 1px solid color-mix(in oklab, var(--panel) 70%, var(--text) 25%); box-shadow: none;
+        }
+
+        footer {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
         }
 
         @media (max-width: 560px) {
@@ -189,29 +199,34 @@
             <div id="editorError" class="error" hidden></div>
         </div>
     </section>
-</main>
 
+
+</main>
+<footer class="wrap">
+    <a class="link" href="https://github.com/dragonairex/card-display-board" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" color="var(--muted)" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg></a>
+</footer>
 <script>
     // ===========================
     // Embedded sample JSON (editable via the Editor tab)
     // ===========================
-    const DEFAULT_DATA = {
-        "pages": [
-            [
-                null,"https://www.pokemon-card.com/assets/images/card_images/large/SM11a/037054_T_OKIDOHAKASENOSETTEINGU.jpg",null,
-                "https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037464_T_BURUNOTANSAKU.jpg","https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037469_T_REDDONOCHOUSEN.jpg","https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037461_T_GURINNOSENRYAKU.jpg",
-                null,"https://www.pokemon-card.com/assets/images/card_images/large/SM11b/037164_P_PIKACHUU.jpg",null
-            ],
-            [
-                null,null,null,
-                null,"https://www.pokemon-card.com/assets/images/card_images/large//036903_P_MYUU.jpg",null,
-                null,null,null
-            ]
-        ]
-    };
-
-    // Working copy
-    let currentData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    const SAMPLE_DATA = {"pages":[[null,"https://www.pokemon-card.com/assets/images/card_images/large/SM11a/037054_T_OKIDOHAKASENOSETTEINGU.jpg",null,"https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037464_T_BURUNOTANSAKU.jpg","https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037469_T_REDDONOCHOUSEN.jpg","https://www.pokemon-card.com/assets/images/card_images/large/SM12a/037461_T_GURINNOSENRYAKU.jpg",null,"https://www.pokemon-card.com/assets/images/card_images/large/SM11b/037164_P_PIKACHUU.jpg",null],[null,null,null,null,"https://www.pokemon-card.com/assets/images/card_images/large//036903_P_MYUU.jpg",null,null,null,null]]};
+    let currentData;
+    /**
+     * Function to load data from an external JSON file with a fallback.
+     */
+    async function loadData() {
+        try {
+            const response = await fetch('./sample.json');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            currentData = await response.json();
+            console.log("sample.json");
+        } catch (error) {
+            console.error("Failed to load sample.json. Using SAMPLE_DATA");
+            currentData = JSON.parse(JSON.stringify(SAMPLE_DATA));
+        }
+    }
 
     // ====== DOM refs ======
     const albumEl = document.getElementById('album');
@@ -354,7 +369,8 @@
     });
 
     // ====== Init ======
-    (function init() {
+    (async function init() {
+        await loadData();
         renderAlbum(currentData.pages);
         jsonEditor.value = JSON.stringify(currentData, null, 2);
         switchTab('album');
