@@ -67,6 +67,9 @@
             background: var(--panel); color: var(--text);
             border: 1px solid color-mix(in oklab, var(--panel) 70%, var(--text) 25%);
             padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.25em;
         }
         .tab.active {
             background: linear-gradient(135deg, #5ab4ff, #6588ff); color: white; border: 0; box-shadow: var(--shadow);
@@ -78,7 +81,7 @@
         .board {
             background: var(--board-bg);
             border-radius: var(--radius);
-            padding: 18px;
+            padding: 28px 18px 18px;
             box-shadow: var(--shadow);
             border: 1px solid rgba(255,255,255,0.04);
         }
@@ -131,7 +134,11 @@
 
         @media (max-width: 560px) {
             .grid { gap: 10px; }
-            .board { padding: 14px; }
+            .board { padding: 24px 14px 14px; }
+        }
+
+        [contenteditable="true"] br {
+            display:none;
         }
     </style>
 </head>
@@ -139,16 +146,27 @@
 <header>
     <div class="wrap topbar">
         <div class="title">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7.5c0-.83.67-1.5 1.5-1.5h6c.83 0 1.5.67 1.5 1.5V18c0 .83-.67 1.5-1.5 1.5h-6A1.5 1.5 0 0 1 4 18V7.5Z" stroke="currentColor" stroke-width="1.5"/>
-                <path d="M11 6h7.5C19.33 6 20 6.67 20 7.5V16" stroke="currentColor" stroke-width="1.5" opacity=".55"/>
-                <path d="M8 9.5h3M8 13h3" stroke="currentColor" stroke-width="1.5" opacity=".75"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <g transform="translate(12, 12) rotate(-15) translate(-12, -12)">
+                    <rect x="3" y="1" width="10" height="18" rx="2"/>
+                </g>
+                <rect x="7" y="1" width="10" height="18" rx="2"/>
+                <g transform="translate(12, 12) rotate(15) translate(-12, -12)">
+                <rect x="11" y="1" width="10" height="18" rx="2"/>
+                </g>
             </svg>
-            <span>Cards</span>
+            <span contenteditable="true">Cards</span>
         </div>
         <nav class="tabs" aria-label="Views">
-            <button class="tab active" data-tab="album">Board</button>
-            <button class="tab" data-tab="editor">Editor</button>
+            <button class="tab active" data-tab="album">
+                <svg width="1.5em" height="1.5em" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="currentColor" class="size-4">
+                    <rect x="5" y="4" width="6" height="7" rx="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></rect>
+                    <rect x="14" y="4" width="6" height="7" rx="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></rect>
+                    <rect x="5" y="14" width="6" height="7" rx="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></rect>
+                    <rect x="14" y="14" width="6" height="7" rx="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></rect>
+                </svg>Board</button>
+            <button class="tab" data-tab="editor">
+                <svg width="1.5em" height="1.5em" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="currentColor" class="size-4"><path d="M13.5 6L10 18.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path><path d="M6.5 8.5L3 12L6.5 15.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path><path d="M17.5 8.5L21 12L17.5 15.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path></svg>Editor</button>
         </nav>
     </div>
 </header>
@@ -164,9 +182,8 @@
         <div class="editor-wrap">
             <textarea id="jsonEditor" spellcheck="false" aria-label="JSON editor"></textarea>
             <div class="editor-actions">
-                <button id="applyBtn" title="Validate and apply changes to album">Apply</button>
                 <button id="formatBtn" class="secondary" title="Format JSON">Format</button>
-                <button id="resetBtn" class="secondary" title="Reset to embedded sample">Reset to Sample</button>
+                <button id="applyBtn" title="Validate and apply changes to album">Apply</button>
             </div>
             <div id="editorStatus" class="status" hidden></div>
             <div id="editorError" class="error" hidden></div>
@@ -204,7 +221,6 @@
     const jsonEditor = document.getElementById('jsonEditor');
     const applyBtn = document.getElementById('applyBtn');
     const formatBtn = document.getElementById('formatBtn');
-    const resetBtn = document.getElementById('resetBtn');
     const editorStatus = document.getElementById('editorStatus');
     const editorError = document.getElementById('editorError');
 
@@ -335,12 +351,6 @@
             showEditorStatus('');
             showEditorError('Cannot format: ' + e.message);
         }
-    });
-
-    resetBtn.addEventListener('click', () => {
-        jsonEditor.value = JSON.stringify(DEFAULT_DATA, null, 2);
-        showEditorStatus('Reset to sample. Click Apply to reflect changes.');
-        showEditorError('');
     });
 
     // ====== Init ======
